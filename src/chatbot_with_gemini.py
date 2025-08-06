@@ -243,7 +243,12 @@ def create_streamlit_app():
             st.success(f"✅ {processed_count} document(s) available")
             for doc_name, status in document_status.items():
                 if status['status'] == 'processed':
-                    st.write(f"• {doc_name}")
+                    st.button(
+                        label=f"📄 {doc_name}",
+                        use_container_width=True,
+                        key=f"sidebar_doc_{doc_name.replace('.', '_').replace(' ', '_')}",
+                        help="Click to view document details"
+                    )
         else:
             st.warning("⚠️ No documents available")
             st.info("Documents need to be processed first")
@@ -337,17 +342,13 @@ def create_streamlit_app():
                     """, unsafe_allow_html=True)
                     for i, source in enumerate(message['sources'], 1):
                         st.write(f"**Source {i}:**")
-                        if os.path.exists(source['document']):
-                            with open(source['document'], "rb") as pdf_file_obj:
-                                pdf_bytes = pdf_file_obj.read()
-                            st.download_button(
-                                label=f"📄 {source['document']}",
-                                data=pdf_bytes,
-                                file_name=source['document'],
-                                mime="application/pdf",
-                                use_container_width=True,
-                                key=f"source_pdf_{i}_{source['document'].replace('.', '_').replace(' ', '_')}"
-                            )
+                        # Always show the document name as a button
+                        st.button(
+                            label=f"📄 {source['document']}",
+                            use_container_width=True,
+                            key=f"source_pdf_{i}_{source['document'].replace('.', '_').replace(' ', '_')}",
+                            help="Click to view document details"
+                        )
                         st.write(f"**Preview:** {source['text_preview']}")
                         st.divider()
 
