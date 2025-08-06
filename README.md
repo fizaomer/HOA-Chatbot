@@ -1,14 +1,14 @@
-# 🏠 HOA Chatbot
+# 🏠 Turtle Rock Crest HOA Assistant
 
-An intelligent chatbot that can answer questions about your HOA bylaws and CC&Rs using AI-powered document analysis.
+A chatbot that helps residents find answers in their HOA documents quickly and easily.
 
-## Features
+## What it does
 
-- **PDF Processing**: Automatically extracts and processes text from HOA documents
-- **Semantic Search**: Finds relevant sections using advanced text embeddings
-- **AI-Powered Responses**: Generates accurate answers based on your specific HOA documents
-- **Web Interface**: Beautiful Streamlit interface for easy interaction
-- **Source Tracking**: Shows which documents were referenced for each answer
+- **Processes PDFs**: Extracts text from HOA bylaws, CC&Rs, and other documents
+- **Smart search**: Finds relevant sections when you ask questions
+- **AI-powered answers**: Uses Google's Gemini to give natural responses
+- **Web interface**: Clean, easy-to-use chat interface
+- **Source tracking**: Shows you exactly which documents were used
 
 ## Quick Start
 
@@ -18,160 +18,198 @@ An intelligent chatbot that can answer questions about your HOA bylaws and CC&Rs
 pip install -r requirements.txt
 ```
 
-### 2. Set Up Environment Variables
+### 2. Set Up API Keys
 
 Create a `.env` file in the project root:
 
 ```bash
-OPENAI_API_KEY=your_openai_api_key_here
+GOOGLE_API_KEY=your_gemini_api_key_here
 ```
 
-### 3. Process Your PDF Documents
+### 3. Process Your Documents
 
 ```bash
 python src/pdf_processor.py
 ```
 
-This will:
-- Extract text from your PDF files
-- Clean and structure the content
-- Save processed data to `data/processed_documents.json`
+This processes your PDF files and saves the extracted data to `data/processed_documents.json`.
 
-### 4. Launch the Chatbot
+### 4. Run the Assistant
 
 ```bash
-streamlit run src/chatbot.py
+streamlit run src/chatbot_with_gemini.py
 ```
 
-The chatbot will open in your browser at `http://localhost:8501`
+Open your browser to `http://localhost:8501` to start chatting.
+
+## Deploying to GitHub
+
+### Initial Setup
+
+1. **Initialize Git repository** (if not already done):
+```bash
+git init
+```
+
+2. **Add your files**:
+```bash
+git add .
+```
+
+3. **Make your first commit**:
+```bash
+git commit -m "Initial commit: HOA Assistant"
+```
+
+4. **Create a new repository on GitHub**:
+   - Go to github.com and click "New repository"
+   - Name it something like "hoa-assistant" or "turtle-rock-chatbot"
+   - Don't initialize with README (we already have one)
+
+5. **Connect and push to GitHub**:
+```bash
+git remote add origin https://github.com/YOUR_USERNAME/YOUR_REPO_NAME.git
+git branch -M main
+git push -u origin main
+```
+
+### Important Notes
+
+- The `.env` file is already in `.gitignore` so your API keys won't be uploaded
+- PDF files are also ignored to keep the repository size manageable
+- Only the code and processed data will be pushed to GitHub
+
+### Updating Your Repository
+
+When you make changes:
+
+```bash
+git add .
+git commit -m "Description of your changes"
+git push
+```
 
 ## Project Structure
 
 ```
 HOA Chatbot/
-├── 📄 Amended and Restated Bylaws - Signed (1).pdf
-├── 📄 Amended and Restated CC&Rs - Recorded 5-1-2025 (1).pdf
 ├── src/
-│   ├── pdf_processor.py     # PDF text extraction and processing
-│   ├── chatbot.py          # Main chatbot with AI integration
+│   ├── pdf_processor.py     # PDF text extraction
+│   ├── chatbot_with_gemini.py  # Main chatbot app
 │   └── utils.py            # Helper functions
-├── data/                   # Processed document storage
-├── requirements.txt        # Python dependencies
-└── README.md              # This file
+├── data/                   # Processed documents
+├── requirements.txt        # Dependencies
+├── .env                   # API keys (not in git)
+├── .gitignore            # Git ignore rules
+└── README.md             # This file
 ```
 
-## How It Works
+## How it works
 
-### 1. Document Processing
-- **PDF Extraction**: Uses `pdfplumber` to extract text from your HOA documents
-- **Text Cleaning**: Removes formatting artifacts and normalizes text
-- **Section Splitting**: Breaks documents into manageable chunks for analysis
+### Document Processing
+- **Text extraction**: Uses pdfplumber to pull text from PDFs
+- **OCR support**: Can handle scanned documents using Tesseract
+- **Text cleaning**: Removes formatting issues and normalizes text
+- **Chunking**: Breaks documents into searchable sections
 
-### 2. Semantic Search
-- **Embeddings**: Creates vector representations of document sections using `sentence-transformers`
-- **Similarity Matching**: Finds the most relevant sections for any question
-- **Context Retrieval**: Provides relevant document sections to the AI
-
-### 3. AI Response Generation
-- **OpenAI Integration**: Uses GPT-3.5-turbo for natural language responses
-- **Context-Aware**: Answers are based on your specific HOA documents
-- **Source Attribution**: Shows which documents were referenced
+### Search & AI
+- **Embeddings**: Creates searchable versions of document sections
+- **Semantic search**: Finds relevant content based on meaning, not just keywords
+- **Gemini AI**: Uses Google's model to generate natural responses
+- **Source tracking**: Shows which documents were used for each answer
 
 ## Example Questions
 
-The chatbot can answer questions like:
+Try asking about:
 
-- "What are the parking rules in our community?"
-- "How much are the monthly HOA fees?"
-- "Can I have pets in my unit?"
-- "What modifications can I make to my property?"
+- "What are the parking rules?"
+- "How much are the monthly fees?"
+- "Can I have pets?"
+- "What can I modify on my property?"
 - "How do I submit a complaint?"
-- "Are there restrictions on renting my property?"
+- "Can I rent my place out?"
 - "What are the quiet hours?"
-- "How do I contact the HOA board?"
+- "How do I contact the board?"
 
 ## Configuration
 
-### Customizing the Chatbot
+### Customizing the Assistant
 
-You can modify the chatbot behavior by editing `src/chatbot.py`:
+Edit `src/chatbot_with_gemini.py` to change:
 
-- **Model Selection**: Change the OpenAI model (default: `gpt-3.5-turbo`)
-- **Response Length**: Adjust `max_tokens` parameter
-- **Temperature**: Control response creativity (default: `0.3`)
-- **Search Results**: Change `top_k` for number of relevant sections
+- **AI model**: Switch between different Gemini models
+- **Response length**: Adjust how detailed answers are
+- **Search results**: Change how many document sections to use
+- **UI elements**: Modify the web interface
 
-### Adding More Documents
+### Adding New Documents
 
-Simply add new PDF files to the project directory and re-run:
+Just drop new PDF files in the project folder and run:
 
 ```bash
 python src/pdf_processor.py
 ```
 
-The chatbot will automatically include the new documents in its knowledge base.
+The assistant will automatically include them.
 
 ## Troubleshooting
 
-### Common Issues
+### Common Problems
 
 1. **"Data file not found"**
-   - Run `python src/pdf_processor.py` first to process your PDFs
+   - Run the PDF processor first: `python src/pdf_processor.py`
 
-2. **"OpenAI API key not found"**
-   - Make sure you have a `.env` file with your OpenAI API key
+2. **"API key not found"**
+   - Check that your `.env` file has the correct GOOGLE_API_KEY
 
-3. **PDF processing errors**
-   - Ensure PDFs are not password-protected
-   - Check that PDFs contain extractable text (not just images)
+3. **PDF processing fails**
+   - Make sure PDFs aren't password-protected
+   - For scanned PDFs, install Tesseract: `brew install tesseract`
 
-4. **Memory issues with large documents**
-   - The system automatically chunks large documents
-   - If issues persist, reduce `max_chunk_size` in `pdf_processor.py`
+4. **Memory issues**
+   - Large documents are automatically chunked
+   - Reduce chunk size in `pdf_processor.py` if needed
 
 ### Performance Tips
 
-- **Faster Processing**: Use smaller chunk sizes for quicker embedding generation
-- **Better Accuracy**: Increase `top_k` for more comprehensive search results
-- **Cost Optimization**: Use `gpt-3.5-turbo` instead of `gpt-4` for lower costs
+- **Faster processing**: Use smaller chunk sizes
+- **Better accuracy**: Increase the number of search results
+- **Cost savings**: Gemini is free for reasonable usage
 
-## API Usage
+## Using the Code
 
-You can also use the chatbot programmatically:
+You can also use the chatbot in your own scripts:
 
 ```python
-from src.chatbot import HOAChatbot
+from src.chatbot_with_gemini import HOAChatbot
 
-# Initialize chatbot
 chatbot = HOAChatbot()
-
-# Ask a question
 result = chatbot.answer_question("What are the parking rules?")
 print(result['answer'])
 ```
 
 ## Contributing
 
-Feel free to enhance the chatbot by:
+Feel free to improve the assistant by:
 
-- Adding new document processing capabilities
-- Improving the semantic search algorithm
+- Adding support for more document types
+- Improving the search algorithm
 - Enhancing the web interface
-- Adding support for more file formats
+- Adding new features
 
 ## License
 
-This project is open source and available under the MIT License.
+MIT License - feel free to use and modify.
 
 ## Support
 
-If you encounter any issues or have questions, please:
+If you run into issues:
 
 1. Check the troubleshooting section above
-2. Review the error messages in the console
-3. Ensure all dependencies are properly installed
-4. Verify your OpenAI API key is valid and has sufficient credits
+2. Look at the console output for error messages
+3. Make sure all dependencies are installed
+4. Verify your API key is working
 
 ---
 
-**Happy HOA Chatting! 🏠✨** 
+**Built for Turtle Rock Crest residents** 🏠 

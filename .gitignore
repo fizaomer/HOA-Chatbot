@@ -109,3 +109,4 @@ Desktop.ini
 
 # Logs
 *.log
+.env
