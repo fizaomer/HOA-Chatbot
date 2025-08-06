@@ -90,7 +90,6 @@ dmypy.json
 *.pdf
 
 # Processed data files (can be regenerated)
-data/processed_documents.json
 
 # IDE files
 .vscode/
