@@ -84,25 +84,19 @@ class HOAChatbot:
         return pdf_files
     
     def get_document_status(self) -> Dict:
-        """Check which PDFs were processed successfully and which failed."""
-        all_pdfs = self.get_all_pdf_files()
+        """Check which documents are available in the processed data."""
         status = {}
         
-        for pdf_file in all_pdfs:
-            if pdf_file in self.documents:
-                status[pdf_file] = {
-                    'status': 'processed',
-                    'sections': len(self.documents[pdf_file]['sections']),
-                    'total_chars': len(self.documents[pdf_file]['cleaned_text']),
-                    'raw_length': len(self.documents[pdf_file]['raw_text'])
-                }
-            else:
-                status[pdf_file] = {
-                    'status': 'not_processed',
-                    'sections': 0,
-                    'total_chars': 0,
-                    'raw_length': 0
-                }
+        # Show documents that are actually in the processed data
+        for doc_name in self.documents.keys():
+            doc_data = self.documents[doc_name]
+            status[doc_name] = {
+                'status': 'processed',
+                'sections': len(doc_data['sections']),
+                'total_chars': len(doc_data['cleaned_text']),
+                'raw_length': len(doc_data['raw_text'])
+            }
+        
         return status
     
     def create_embeddings(self) -> List[Dict]:
@@ -243,16 +237,16 @@ def create_streamlit_app():
 
     # Sidebar for document info
     with st.sidebar:
-        st.header("📄 Your Documents")
+        st.header("📚 Available Documents for Reference")
         
         if processed_count > 0:
-            st.success(f"✅ {processed_count} document(s) processed")
+            st.success(f"✅ {processed_count} document(s) available")
             for doc_name, status in document_status.items():
                 if status['status'] == 'processed':
                     st.write(f"• {doc_name}")
         else:
-            st.warning("⚠️ No documents processed yet")
-            st.info("Run `python src/pdf_processor.py` to process your PDFs")
+            st.warning("⚠️ No documents available")
+            st.info("Documents need to be processed first")
 
     # Using Gemini for AI responses
     mode = "gemini (free)" # Gemini is the only option now
