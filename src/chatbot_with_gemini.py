@@ -370,7 +370,7 @@ def create_streamlit_app():
                         st.button(
                             label=f"📄 {source['document']}",
                             use_container_width=True,
-                            key=f"source_pdf_{i}_{source['document'].replace('.', '_').replace(' ', '_')}",
+                            key=f"source_pdf_{id(message)}_{i}_{source['document'].replace('.', '_').replace(' ', '_')}",
                             help="Click to view document details"
                         )
                         st.write(f"**Preview:** {source['text_preview']}")
