@@ -240,15 +240,39 @@ def create_streamlit_app():
         st.header("📚 Available Documents for Reference")
         
         if processed_count > 0:
-            st.success(f"✅ {processed_count} document(s) available")
             for doc_name, status in document_status.items():
                 if status['status'] == 'processed':
-                    st.button(
-                        label=f"📄 {doc_name}",
-                        use_container_width=True,
-                        key=f"sidebar_doc_{doc_name.replace('.', '_').replace(' ', '_')}",
-                        help="Click to view document details"
-                    )
+                    # Remove .pdf extension for display
+                    display_name = doc_name.replace('.pdf', '')
+                    
+                    # Use expander for each document
+                    with st.expander(f"{display_name}", expanded=False):
+                        st.write(f"**File:** {doc_name}")
+                        
+                        # Show document stats
+                        st.write(f"**Sections:** {status['sections']}")
+                        st.write(f"**Characters:** {status['total_chars']:,}")
+                        
+                        # Show a sample of the document content
+                        if doc_name in st.session_state.chatbot.documents:
+                            doc_data = st.session_state.chatbot.documents[doc_name]
+                            st.subheader("Document Preview")
+                            preview_text = doc_data['cleaned_text'][:500] + "..." if len(doc_data['cleaned_text']) > 500 else doc_data['cleaned_text']
+                            st.text_area("Content preview:", preview_text, height=150, disabled=True)
+                        
+                        # Provide PDF download if available locally
+                        if os.path.exists(doc_name):
+                            with open(doc_name, "rb") as pdf_file:
+                                pdf_bytes = pdf_file.read()
+                            st.download_button(
+                                label="Download PDF",
+                                data=pdf_bytes,
+                                file_name=doc_name,
+                                mime="application/pdf",
+                                use_container_width=True
+                            )
+                        else:
+                            st.info("PDF download available when running locally")
         else:
             st.warning("⚠️ No documents available")
             st.info("Documents need to be processed first")
@@ -262,36 +286,36 @@ def create_streamlit_app():
 
     # Show suggested questions if no chat history
     if not st.session_state.chat_history:
-        st.markdown("### �� Try asking about:")
+        st.markdown("### Try asking about:")
 
         # Create columns for the suggested questions
         col1, col2 = st.columns(2)
 
         with col1:
-            if st.button("🏠 What are the parking rules?", use_container_width=True):
+            if st.button(" What are the parking rules?", use_container_width=True):
                 st.session_state.suggested_question = "What are the parking rules?"
                 st.rerun()
-            if st.button("💰 How much are the monthly fees?", use_container_width=True):
+            if st.button(" How much are the monthly fees?", use_container_width=True):
                 st.session_state.suggested_question = "How much are the monthly fees?"
                 st.rerun()
-            if st.button("�� Can I have pets?", use_container_width=True):
+            if st.button(" Can I have pets?", use_container_width=True):
                 st.session_state.suggested_question = "Can I have pets?"
                 st.rerun()
-            if st.button("��️ What can I modify on my property?", use_container_width=True):
+            if st.button(" What can I modify on my property?", use_container_width=True):
                 st.session_state.suggested_question = "What can I modify on my property?"
                 st.rerun()
 
         with col2:
-            if st.button("📝 How do I submit a complaint?", use_container_width=True):
+            if st.button(" How do I submit a complaint?", use_container_width=True):
                 st.session_state.suggested_question = "How do I submit a complaint?"
                 st.rerun()
-            if st.button("🏠 Can I rent my place out?", use_container_width=True):
+            if st.button(" Can I rent my place out?", use_container_width=True):
                 st.session_state.suggested_question = "Can I rent my place out?"
                 st.rerun()
-            if st.button("�� What are the quiet hours?", use_container_width=True):
+            if st.button(" What are the quiet hours?", use_container_width=True):
                 st.session_state.suggested_question = "What are the quiet hours?"
                 st.rerun()
-            if st.button("📞 How do I contact the board?", use_container_width=True):
+            if st.button(" How do I contact the board?", use_container_width=True):
                 st.session_state.suggested_question = "How do I contact the board?"
                 st.rerun()
 
@@ -376,7 +400,7 @@ def create_streamlit_app():
 
     # Clear chat button
     if st.session_state.chat_history:
-        if st.button("��️ Clear Chat", type="secondary"):
+        if st.button(" Clear Chat", type="secondary"):
             st.session_state.chat_history = []
             st.rerun()
 
