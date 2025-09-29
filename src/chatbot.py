@@ -5,8 +5,8 @@ import numpy as np
 from dotenv import load_dotenv
 import streamlit as st
 
-# Llama 3.1 for AI responses (local, free)
-import requests
+# OpenAI for AI responses
+import openai
 
 # Load config from .env file
 load_dotenv()
@@ -18,12 +18,9 @@ class HOAChatbot:
         self.embedding_model = None
         self.document_embeddings = []
         
-        # Set up Llama 3.1 - our local AI engine (free, no API keys needed)
-        self.ollama_available = self._check_ollama()
-        if self.ollama_available:
-            print("✓ Llama 3.1 available via Ollama")
-        else:
-            print("⚠️ Ollama not available - using search mode")
+        # Set up OpenAI - our AI engine
+        self.openai_client = openai.OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
+        print("✓ OpenAI client initialized")
             
         # Load the text embedding model for finding relevant docs
         self._load_embedding_model()
@@ -32,16 +29,6 @@ class HOAChatbot:
         if self.embedding_model:
             self.document_embeddings = self.create_embeddings()
     
-    def _check_ollama(self):
-        """Check if Ollama is running and Llama 3.1 is available."""
-        try:
-            response = requests.get('http://localhost:11434/api/tags', timeout=2)
-            if response.status_code == 200:
-                models = response.json().get('models', [])
-                return any('llama3.1' in model.get('name', '') for model in models)
-        except:
-            pass
-        return False
     
     def _load_embedding_model(self):
         try:
@@ -128,9 +115,7 @@ class HOAChatbot:
             print(f"Semantic search failed: {e}")
             return self.find_relevant_sections(query, top_k)
     
-    def generate_response_with_llama(self, query: str, relevant_sections: List[Dict]) -> str:
-        if not self.ollama_available:
-            return "Llama 3.1 not available. Please make sure Ollama is running."
+    def generate_response_with_openai(self, query: str, relevant_sections: List[Dict]) -> str:
         if not relevant_sections:
             return "I don't have enough information to answer that question. Please try rephrasing or ask about a different topic."
         
@@ -149,22 +134,24 @@ User question: {query}
 Provide a clear, helpful answer based on the HOA documents. If you mention specific rules, tell them which document it's from."""
 
         try:
-            response = requests.post('http://localhost:11434/api/generate', 
-                                   json={
-                                       'model': 'llama3.1:8b',
-                                       'prompt': prompt,
-                                       'stream': False
-                                   },
-                                   timeout=30)
-            
-            if response.status_code == 200:
-                return response.json()['response']
-            else:
-                return f"Ollama error: {response.status_code}"
+            print("🤖 Using OpenAI GPT-3.5-turbo for AI response...")
+            response = self.openai_client.chat.completions.create(
+                model="gpt-3.5-turbo",
+                messages=[
+                    {"role": "system", "content": "You are a helpful HOA assistant."},
+                    {"role": "user", "content": prompt}
+                ],
+                max_tokens=1000,
+                temperature=0.7
+            )
+            print("✅ OpenAI response received successfully")
+            return response.choices[0].message.content
         except Exception as e:
-            return f"Error calling Llama: {str(e)}"
+            print(f"❌ OpenAI failed: {str(e)}")
+            return f"Error calling OpenAI: {str(e)}"
     
     def generate_response_with_search(self, query: str, relevant_sections: List[Dict]) -> str:
+        print("🔍 Using search-only mode (no AI)")
         if not relevant_sections:
             return "I don't have enough information to answer that question. Please try rephrasing or ask about a different topic."
         response_parts = []
@@ -178,22 +165,26 @@ Provide a clear, helpful answer based on the HOA documents. If you mention speci
         response_parts.append(f"\n\n*This info comes from searching your HOA docs. Check the original documents for full details.*")
         return '\n'.join(response_parts)
     
-    def answer_question(self, query: str, use_ai: str = "llama") -> Dict:
+    def answer_question(self, query: str, use_ai: str = "openai") -> Dict:
         relevant_sections = self.find_relevant_sections(query)
         
-        # Use Llama 3.1 if available, otherwise fall back to search
-        if use_ai == "llama" and self.ollama_available:
+        # Use OpenAI by default, fall back to search if needed
+        if use_ai == "openai":
             try:
-                response = self.generate_response_with_llama(query, relevant_sections)
+                response = self.generate_response_with_openai(query, relevant_sections)
+                method_used = "🤖 OpenAI GPT-3.5-turbo"
             except Exception as e:
-                print(f"Llama failed, using search mode: {e}")
+                print(f"OpenAI failed, using search mode: {e}")
                 response = self.generate_response_with_search(query, relevant_sections)
+                method_used = "🔍 Search-only (OpenAI failed)"
         else:
             response = self.generate_response_with_search(query, relevant_sections)
+            method_used = "🔍 Search-only"
         
         return {
             'question': query,
             'answer': response,
+            'method_used': method_used,
             'sources': [
                 {
                     'document': section['document'],
@@ -252,87 +243,53 @@ Provide a clear, helpful answer based on the HOA documents. If you mention speci
             return display_name
     
     def generate_follow_up_questions(self, question: str, answer: str) -> List[str]:
-        """Generate relevant follow-up questions based on the Q&A."""
-        # Define follow-up question templates based on common HOA topics
-        follow_up_templates = {
-            'parking': [
-                "What are the guest parking rules?",
-                "Can I get a parking permit?",
-                "What happens if I park in the wrong spot?"
-            ],
-            'modify': [
-                "What's the approval process for modifications?",
-                "How long does approval take?",
-                "What modifications don't need approval?"
-            ],
-            'fees': [
-                "When are fees due?",
-                "What happens if I'm late on payments?",
-                "Are there any fee discounts available?"
-            ],
-            'pets': [
-                "How many pets can I have?",
-                "Are there breed restrictions?",
-                "What about pet deposits?"
-            ],
-            'rent': [
-                "Can I rent out part of my property?",
-                "What are the rental restrictions?",
-                "Do I need to notify the HOA?"
-            ],
-            'complaint': [
-                "How do I file a complaint?",
-                "What's the complaint process?",
-                "How long does it take to resolve?"
-            ],
-            'board': [
-                "How do I contact the board?",
-                "When are board meetings?",
-                "How can I run for the board?"
-            ],
-            'quiet': [
-                "What are the noise restrictions?",
-                "When are quiet hours?",
-                "What about construction noise?"
+        """Generate relevant follow-up questions based on the actual response content using AI."""
+        try:
+            prompt = f"""Based on this HOA Q&A conversation, generate 2-3 specific follow-up questions that a homeowner might naturally ask next. The questions should be based on the actual content of the answer, not just variations of the original question.
+
+Original Question: {question}
+
+Answer: {answer}
+
+Generate follow-up questions that:
+1. Ask for more details about specific points mentioned in the answer
+2. Ask about related processes or next steps
+3. Ask about exceptions, penalties, or alternatives
+4. Are specific and actionable
+
+Return only the questions, one per line, without numbering or bullet points."""
+
+            response = self.openai_client.chat.completions.create(
+                model="gpt-3.5-turbo",
+                messages=[
+                    {"role": "system", "content": "You are a helpful assistant that generates relevant follow-up questions for HOA conversations."},
+                    {"role": "user", "content": prompt}
+                ],
+                max_tokens=200,
+                temperature=0.7
+            )
+            
+            # Parse the response into individual questions
+            questions_text = response.choices[0].message.content.strip()
+            questions = [q.strip() for q in questions_text.split('\n') if q.strip()]
+            
+            # Clean up any numbering or bullet points
+            cleaned_questions = []
+            for q in questions:
+                # Remove common prefixes
+                q = q.lstrip('•-123456789. ')
+                if q and len(q) > 10:  # Only include substantial questions
+                    cleaned_questions.append(q)
+            
+            return cleaned_questions[:2]  # Return max 2 questions
+            
+        except Exception as e:
+            print(f"Error generating follow-up questions: {e}")
+            # Fallback to simple questions if AI fails
+            return [
+                "Can you tell me more about this?",
+                "What are the next steps?"
             ]
-        }
-        
-        # Find relevant follow-ups based on question content
-        question_lower = question.lower()
-        answer_lower = answer.lower()
-        
-        follow_ups = []
-        
-        # Check for keywords in the question
-        for topic, questions in follow_up_templates.items():
-            if topic in question_lower:
-                follow_ups.extend(questions[:2])  # Take first 2 questions
-                break
-        
-        # If no specific topic found, generate general follow-ups
-        if not follow_ups:
-            if 'rule' in question_lower or 'policy' in question_lower:
-                follow_ups = [
-                    "What are the penalties for violating this rule?",
-                    "How is this rule enforced?"
-                ]
-            elif 'fee' in question_lower or 'cost' in question_lower:
-                follow_ups = [
-                    "When are these fees due?",
-                    "What happens if I can't pay on time?"
-                ]
-            elif 'approval' in question_lower or 'permit' in question_lower:
-                follow_ups = [
-                    "How long does the approval process take?",
-                    "What documents do I need to submit?"
-                ]
-            else:
-                follow_ups = [
-                    "What are the penalties for not following this?",
-                    "How do I get more information about this?"
-                ]
-        
-        return follow_ups[:3]  # Return max 3 follow-up questions
 
 def create_streamlit_app():
     st.set_page_config(
@@ -355,7 +312,17 @@ def create_streamlit_app():
 
     # Sidebar for document info
     with st.sidebar:
-        st.header("📚 Available Documents for Reference")
+        st.header("Available Documents for Reference")
+        
+        # Custom CSS for left-aligned button text
+        st.markdown("""
+        <style>
+        .stButton > button {
+            text-align: left !important;
+            justify-content: flex-start !important;
+        }
+        </style>
+        """, unsafe_allow_html=True)
         
         if processed_count > 0:
             for doc_name, status in document_status.items():
@@ -363,99 +330,16 @@ def create_streamlit_app():
                     # Get clean display name
                     display_name = st.session_state.chatbot.get_display_name(doc_name)
                     
-                    # Use expander for each document
-                    with st.expander(f"{display_name}", expanded=False):
-                        st.write(f"**File:** {doc_name}")
-                        
-                        # Show document stats
-                        st.write(f"**Sections:** {status['sections']}")
-                        st.write(f"**Characters:** {status['total_chars']:,}")
-                        
-                        # Show a sample of the document content
-                        if doc_name in st.session_state.chatbot.documents:
-                            doc_data = st.session_state.chatbot.documents[doc_name]
-                            st.subheader("Document Preview")
-                            preview_text = doc_data['cleaned_text'][:500] + "..." if len(doc_data['cleaned_text']) > 500 else doc_data['cleaned_text']
-                            st.text_area("Content preview:", preview_text, height=150, disabled=True)
-                        
-                        # Check for PDF in multiple locations
-                        pdf_found = False
-                        pdf_path = None
-                        
-                        # Check common locations for PDFs
-                        possible_paths = [
-                            doc_name,  # Current directory
-                            f"../{doc_name}",  # Parent directory
-                            f"../pdfs/{doc_name}",  # PDFs folder
-                            f"pdfs/{doc_name}",  # Local pdfs folder
-                            f"documents/{doc_name}",  # Documents folder
-                        ]
-                        
-                        for path in possible_paths:
-                            if os.path.exists(path):
-                                pdf_found = True
-                                pdf_path = path
-                                break
-                        
-                        if pdf_found and pdf_path:
-                            # Create a link to open PDF in new tab
-                            pdf_url = f"file://{os.path.abspath(pdf_path)}"
-                            
-                            col1, col2 = st.columns(2)
-                            with col1:
-                                st.markdown(f"""
-                                <a href="{pdf_url}" target="_blank" style="text-decoration: none;">
-                                    <button style="
-                                        background-color: #1f77b4;
-                                        color: white;
-                                        border: none;
-                                        padding: 8px 16px;
-                                        border-radius: 4px;
-                                        cursor: pointer;
-                                        width: 100%;
-                                        font-size: 14px;
-                                    ">📄 View PDF</button>
-                                </a>
-                                """, unsafe_allow_html=True)
-                            
-                            with col2:
-                                with open(pdf_path, "rb") as pdf_file:
-                                    pdf_bytes = pdf_file.read()
-                                st.download_button(
-                                    label="📥 Download",
-                                    data=pdf_bytes,
-                                    file_name=doc_name,
-                                    mime="application/pdf",
-                                    use_container_width=True
-                                )
-                        else:
-                            # Show document content in a more useful way
-                            st.info("📄 Document content is available in the chat responses")
-                            
-                            # Add buttons for document interaction
-                            col1, col2 = st.columns(2)
-                            with col1:
-                                if st.button(f"🔍 Search in {display_name}", key=f"search_{doc_name}", use_container_width=True):
-                                    st.session_state.suggested_question = f"Tell me about {display_name}"
-                                    st.rerun()
-                            
-                            with col2:
-                                if st.button(f"📖 View Content", key=f"view_{doc_name}", use_container_width=True):
-                                    # Show document content in an expandable section
-                                    st.session_state[f"show_content_{doc_name}"] = not st.session_state.get(f"show_content_{doc_name}", False)
-                                    st.rerun()
-                            
-                            # Show document content if requested
-                            if st.session_state.get(f"show_content_{doc_name}", False):
-                                st.markdown("**📖 Document Content:**")
-                                doc_data = st.session_state.chatbot.documents[doc_name]
-                                st.text_area("", doc_data['cleaned_text'], height=300, disabled=True)
+                    # Simple document button - just trigger a search
+                    if st.button(f"{display_name}", key=f"doc_{doc_name}", use_container_width=True):
+                        st.session_state.suggested_question = f"Tell me about {doc_name}"
+                        st.rerun()
         else:
             st.warning("⚠️ No documents available")
             st.info("Documents need to be processed first")
 
-    # Using Llama 3.1 (local AI, completely free)
-    mode = "llama 3.1 (local, free)" # Llama 3.1 runs locally, no API keys needed
+    # Using OpenAI (AI-powered responses)
+    mode = "openai (AI-powered)" # OpenAI provides intelligent responses
 
     # Suggested questions section
     if 'chat_history' not in st.session_state:
@@ -509,11 +393,12 @@ def create_streamlit_app():
         # Get the answer
         with st.spinner(""): # Removed loading text
             try:
-                result = st.session_state.chatbot.answer_question(suggested_q, use_ai="llama")
+                result = st.session_state.chatbot.answer_question(suggested_q, use_ai="openai")
                 st.session_state.chat_history.append({
                     'role': 'assistant',
                     'content': result['answer'],
-                    'sources': result['sources']
+                    'sources': result['sources'],
+                    'method_used': result.get('method_used', 'Unknown')
                 })
             except Exception as e:
                 error_msg = f"Sorry, I encountered an error: {str(e)}"
@@ -529,6 +414,10 @@ def create_streamlit_app():
             st.chat_message("user").write(message['content'])
         else:
             st.chat_message("assistant").write(message['content'])
+            
+            # Show which method was used
+            if 'method_used' in message:
+                st.caption(f"*{message['method_used']}*")
             
             # Show sources right after the answer
             if 'sources' in message:
@@ -596,13 +485,13 @@ def create_streamlit_app():
                 follow_ups = st.session_state.chatbot.generate_follow_up_questions(user_question, assistant_answer)
                 
                 if follow_ups:
-                    st.markdown("**💡 Suggested follow-up questions:**")
+                    st.markdown("**Suggested follow-up questions:**")
                     col1, col2 = st.columns(2)
                     
                     for j, follow_up in enumerate(follow_ups):
                         col = col1 if j % 2 == 0 else col2
                         with col:
-                            if st.button(f"❓ {follow_up}", key=f"followup_{i}_{j}", use_container_width=True):
+                            if st.button(f"{follow_up}", key=f"followup_{i}_{j}", use_container_width=True):
                                 st.session_state.suggested_question = follow_up
                                 st.rerun()
 
@@ -613,12 +502,17 @@ def create_streamlit_app():
         
         with st.spinner(""): # Removed loading text
             try:
-                result = st.session_state.chatbot.answer_question(prompt, use_ai="llama")
+                result = st.session_state.chatbot.answer_question(prompt, use_ai="openai")
                 st.chat_message("assistant").write(result['answer'])
+                
+                # Show which method was used
+                st.caption(f"*{result.get('method_used', 'Unknown method')}*")
+                
                 st.session_state.chat_history.append({
                     'role': 'assistant',
                     'content': result['answer'],
-                    'sources': result['sources']
+                    'sources': result['sources'],
+                    'method_used': result.get('method_used', 'Unknown')
                 })
             except Exception as e:
                 error_msg = f"Sorry, I encountered an error: {str(e)}"
